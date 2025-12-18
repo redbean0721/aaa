@@ -15,12 +15,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Linux x64
           - os: ubuntu-latest
             arch: amd64
+          # Linux ARM64 (Raspberry Pi)
           - os: ubuntu-latest
             arch: arm64
+          # Windows x64
           - os: windows-latest
             arch: amd64
+          # macOS x64
+          - os: macos-latest
+            arch: amd64
+          # macOS ARM64
+          - os: macos-latest
+            arch: arm64
 
     steps:
       - uses: actions/checkout@v4
@@ -31,12 +40,14 @@ jobs:
           VERSION=$(grep 'const char\* VERSION' main.cpp | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
+      # Linux deps
       - name: Setup Linux deps
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake g++-aarch64-linux-gnu
 
+      # Windows deps
       - name: Setup Windows MinGW
         if: runner.os == 'Windows'
         shell: bash
@@ -44,6 +55,7 @@ jobs:
           choco install mingw -y
           echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
 
+      # Configure
       - name: Configure
         shell: bash
         run: |
@@ -59,15 +71,17 @@ jobs:
             cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           fi
 
+      # Build
       - name: Build
         shell: bash
         run: |
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             cmake --build build --config Release
           else
-            cmake --build build --config Release -- -j$(nproc)
+            cmake --build build --config Release -- -j$(nproc 2>/dev/null || echo 2)
           fi
 
+      # Rename executable
       - name: Rename executable
         shell: bash
         run: |
@@ -75,15 +89,22 @@ jobs:
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             OUT=${APP_NAME}_v${VERSION}_windows_amd64.exe
             mv Release/${APP_NAME}.exe "$OUT"
-          elif [[ "${{ matrix.arch }}" == "arm64" ]]; then
+          elif [[ "$RUNNER_OS" == "Linux" && "${{ matrix.arch }}" == "arm64" ]]; then
             OUT=${APP_NAME}_v${VERSION}_linux_arm64
             mv ${APP_NAME} "$OUT"
-          else
+          elif [[ "$RUNNER_OS" == "Linux" ]]; then
             OUT=${APP_NAME}_v${VERSION}_linux_amd64
+            mv ${APP_NAME} "$OUT"
+          elif [[ "$RUNNER_OS" == "macOS" && "${{ matrix.arch }}" == "arm64" ]]; then
+            OUT=${APP_NAME}_v${VERSION}_darwin_arm64
+            mv ${APP_NAME} "$OUT"
+          else
+            OUT=${APP_NAME}_v${VERSION}_darwin_amd64
             mv ${APP_NAME} "$OUT"
           fi
           echo "OUT=$OUT" >> "$GITHUB_ENV"
 
+      # Upload artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
