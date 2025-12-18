@@ -82,10 +82,10 @@ jobs:
           
           if [[ "$RUNNER_OS" == "Windows" && "${{ matrix. arch }}" == "amd64" ]]; then
             OUT=${APP_NAME}_v${VERSION}_windows_amd64.exe
-            if [ -f "Release/${APP_NAME}. exe" ]; then
+            if [ -f "Release/${APP_NAME}.exe" ]; then
               echo "Found in Release/"
               mv Release/${APP_NAME}.exe "$OUT"
-            elif [ -f "${APP_NAME}. exe" ]; then
+            elif [ -f "${APP_NAME}.exe" ]; then
               echo "Found in build/"
               mv ${APP_NAME}.exe "$OUT"
             else
