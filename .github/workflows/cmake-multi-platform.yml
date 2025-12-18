@@ -2,8 +2,8 @@ name: CMake Multi-Platform Build & Release
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -122,7 +122,7 @@ jobs:
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REPO_PAT }}
 
       # ---------- Upload executable ----------
       - name: Upload executable to Release
