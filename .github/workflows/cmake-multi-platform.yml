@@ -15,40 +15,31 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # -------- Linux x64 --------
+          # Linux x64
           - os: ubuntu-latest
             arch: amd64
-
-          # -------- Linux ARM64 (Raspberry Pi) --------
+          # Linux ARM64 (Raspberry Pi)
           - os: ubuntu-latest
             arch: arm64
-
-          # -------- Windows x64 --------
+          # Windows x64
           - os: windows-latest
             arch: amd64
 
     steps:
-      # ---------- Checkout ----------
       - uses: actions/checkout@v4
 
-      # ---------- Extract version ----------
       - name: Extract version
         shell: bash
         run: |
           VERSION=$(grep 'const char\* VERSION' main.cpp | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
-      # ---------- Linux deps ----------
       - name: Setup Linux deps
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            cmake \
-            g++-aarch64-linux-gnu
+          sudo apt-get install -y build-essential cmake g++-aarch64-linux-gnu
 
-      # ---------- Windows deps ----------
       - name: Setup Windows MinGW
         if: runner.os == 'Windows'
         shell: bash
@@ -56,53 +47,42 @@ jobs:
           choco install mingw -y
           echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
 
-      # ---------- Configure ----------
       - name: Configure
         shell: bash
         run: |
           if [[ "$RUNNER_OS" == "Linux" && "${{ matrix.arch }}" == "arm64" ]]; then
-            cat > toolchain-arm64.cmake <<'EOF'
-            set(CMAKE_SYSTEM_NAME Linux)
-            set(CMAKE_SYSTEM_PROCESSOR aarch64)
-            set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
-            set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
-            EOF
-
-            cmake -S . -B build \
-              -DCMAKE_TOOLCHAIN_FILE=toolchain-arm64.cmake \
-              -DCMAKE_BUILD_TYPE=Release
+          cat > toolchain-arm64.cmake <<'EOF'
+          set(CMAKE_SYSTEM_NAME Linux)
+          set(CMAKE_SYSTEM_PROCESSOR aarch64)
+          set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
+          set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
+          EOF
+            cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=toolchain-arm64.cmake -DCMAKE_BUILD_TYPE=Release
           else
             cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           fi
 
-      # ---------- Build ----------
       - name: Build
         shell: bash
         run: |
           cmake --build build --config Release -- -j$(nproc 2>/dev/null || echo 2)
 
-      # ---------- Rename executable ----------
       - name: Rename executable
         shell: bash
         run: |
           cd build
-
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             OUT=${APP_NAME}_v${VERSION}_windows_amd64.exe
             mv Release/${APP_NAME}.exe "$OUT"
-
           elif [[ "${{ matrix.arch }}" == "arm64" ]]; then
             OUT=${APP_NAME}_v${VERSION}_linux_arm64
             mv ${APP_NAME} "$OUT"
-
           else
             OUT=${APP_NAME}_v${VERSION}_linux_amd64
             mv ${APP_NAME} "$OUT"
           fi
-
           echo "OUT=$OUT" >> "$GITHUB_ENV"
 
-      # ---------- Upload artifact ----------
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -120,8 +100,7 @@ jobs:
           path: dist
 
       - name: List files
-        run: |
-          ls -R dist
+        run: ls -R dist
 
       - name: Create GitHub Release & Upload
         uses: softprops/action-gh-release@v1
