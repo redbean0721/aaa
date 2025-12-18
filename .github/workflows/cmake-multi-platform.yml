@@ -14,9 +14,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        arch: [x64]
-        build_type: [Release]
+        include:
+          # -------- Linux x64 --------
+          - os: ubuntu-latest
+            arch: amd64
+
+          # -------- Linux ARM64 (Raspberry Pi) --------
+          - os: ubuntu-latest
+            arch: arm64
+
+          # -------- Windows x64 --------
+          - os: windows-latest
+            arch: amd64
 
     steps:
       # ---------- Checkout ----------
@@ -34,7 +43,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake
+          sudo apt-get install -y build-essential cmake g++-aarch64-linux-gnu
 
       # ---------- Windows deps ----------
       - name: Setup Windows MinGW
@@ -48,33 +57,53 @@ jobs:
       - name: Configure
         shell: bash
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          if [[ "$RUNNER_OS" == "Linux" && "${{ matrix.arch }}" == "arm64" ]]; then
+            cat > toolchain-arm64.cmake <<EOF
+            set(CMAKE_SYSTEM_NAME Linux)
+            set(CMAKE_SYSTEM_PROCESSOR aarch64)
+            set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
+            set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
+            EOF
+
+            cmake -S . -B build \
+              -DCMAKE_TOOLCHAIN_FILE=toolchain-arm64.cmake \
+              -DCMAKE_BUILD_TYPE=Release
+          else
+            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          fi
 
       # ---------- Build ----------
       - name: Build
         shell: bash
         run: |
-          cmake --build build --config Release
+          cmake --build build --config Release -- -j$(nproc 2>/dev/null || echo 2)
 
       # ---------- Rename executable ----------
       - name: Rename executable
         shell: bash
         run: |
           cd build
+
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             OUT=${APP_NAME}_v${VERSION}_windows_amd64.exe
             mv Release/${APP_NAME}.exe $OUT
+
+          elif [[ "${{ matrix.arch }}" == "arm64" ]]; then
+            OUT=${APP_NAME}_v${VERSION}_linux_arm64
+            mv ${APP_NAME} $OUT
+
           else
             OUT=${APP_NAME}_v${VERSION}_linux_amd64
             mv ${APP_NAME} $OUT
           fi
+
           echo "OUT=$OUT" >> $GITHUB_ENV
 
       # ---------- Upload artifact ----------
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ runner.os }}-${{ env.OUT }}
+          name: ${{ runner.os }}-${{ matrix.arch }}
           path: build/${{ env.OUT }}
 
   release:
