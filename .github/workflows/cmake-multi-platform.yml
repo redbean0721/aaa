@@ -114,20 +114,6 @@ jobs:
 
           echo "RELEASE_FILE=$RELEASE_FILE" >> "$GITHUB_ENV"
 
-      # ---------- Create Tag ----------
-      - name: Create tag if not exists
-        id: create_tag
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-
-          TAG=v${{ env.VERSION }}
-
-          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
-            git tag "$TAG"
-            git push origin "$TAG"
-          fi
-
       # ---------- Create GitHub Release ----------
       - name: Create GitHub Release
         id: create_release
