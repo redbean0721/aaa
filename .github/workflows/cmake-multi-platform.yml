@@ -91,10 +91,10 @@ jobs:
           fi
 
       # =======================
-      # Upload artifacts
+      # Upload artifacts (v4)
       # =======================
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: taiwanfrp_launcher-${{ runner.os }}-${{ matrix.arch }}
           path: |
