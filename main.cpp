@@ -9,7 +9,7 @@ using nlohmann::json;
 
 const char* APP_NAME = "TaiwanFRP Launcher";
 inline constexpr const char* KEYRING_NAME = "taiwanfrp-launcher";
-const char* VERSION = "2.0.0";
+const char* VERSION = "2.0.1";
 const char* COPYRIGHT = "Copyright (c) 2025 TaiwanFRP";
 
 inline std::string FRP_VERSION;

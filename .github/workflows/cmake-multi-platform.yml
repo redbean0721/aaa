@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  APP_NAME: taiwanfrp_launcher
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -12,22 +15,28 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        arch: [x64]   # 先不要 windows arm64
+        arch: [x64]
         build_type: [Release]
 
     steps:
+      # ---------- Checkout ----------
       - uses: actions/checkout@v4
 
+      # ---------- Extract version ----------
       - name: Extract version
         shell: bash
         run: |
           VERSION=$(grep 'const char\* VERSION' main.cpp | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
+      # ---------- Linux deps ----------
       - name: Setup Linux deps
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake
 
+      # ---------- Windows deps ----------
       - name: Setup Windows MinGW
         if: runner.os == 'Windows'
         shell: bash
@@ -35,35 +44,57 @@ jobs:
           choco install mingw -y
           echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
 
+      # ---------- Configure ----------
       - name: Configure
         shell: bash
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
+      # ---------- Build ----------
       - name: Build
         shell: bash
         run: |
           cmake --build build --config Release
 
+      # ---------- Rename executable ----------
       - name: Rename executable
         shell: bash
         run: |
           cd build
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            OUT=taiwanfrp_launcher_v${VERSION}_windows_amd64.exe
-            mv Release/taiwanfrp_launcher.exe $OUT
+            OUT=${APP_NAME}_v${VERSION}_windows_amd64.exe
+            mv Release/${APP_NAME}.exe $OUT
           else
-            OUT=taiwanfrp_launcher_v${VERSION}_linux_amd64
-            mv taiwanfrp_launcher $OUT
+            OUT=${APP_NAME}_v${VERSION}_linux_amd64
+            mv ${APP_NAME} $OUT
           fi
           echo "OUT=$OUT" >> $GITHUB_ENV
 
-      # 只讓 Linux x64 建立 release
-      - name: Create release & upload
-        if: runner.os == 'Linux'
+      # ---------- Upload artifact ----------
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ runner.os }}-${{ env.OUT }}
+          path: build/${{ env.OUT }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: List files
+        run: ls -R dist
+
+      - name: Create GitHub Release & Upload
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ env.VERSION }}
-          files: build/${{ env.OUT }}
+          tag_name: v${{ github.run_number }}
+          name: Release v${{ github.run_number }}
+          files: dist/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_PAT }}
