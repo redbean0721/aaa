@@ -68,24 +68,39 @@ jobs:
           fi
 
       # Rename executable
-      - name: Rename executable
+      - name:  Rename executable
         shell: bash
         run: |
           cd build
-          if [[ "$RUNNER_OS" == "Windows" && "${{ matrix.arch }}" == "amd64" ]]; then
+          # 先列出所有檔案以便除錯
+          echo "=== Files in build directory ==="
+          ls -la
+          if [ -d "Release" ]; then
+            echo "=== Files in Release directory ==="
+            ls -la Release/
+          fi
+          
+          if [[ "$RUNNER_OS" == "Windows" && "${{ matrix. arch }}" == "amd64" ]]; then
             OUT=${APP_NAME}_v${VERSION}_windows_amd64.exe
-            # 檢查檔案在哪個位置
             if [ -f "Release/${APP_NAME}. exe" ]; then
+              echo "Found in Release/"
               mv Release/${APP_NAME}.exe "$OUT"
-            elif [ -f "${APP_NAME}.exe" ]; then
+            elif [ -f "${APP_NAME}. exe" ]; then
+              echo "Found in build/"
               mv ${APP_NAME}.exe "$OUT"
+            else
+              echo "ERROR: Cannot find ${APP_NAME}.exe"
+              exit 1
             fi
           elif [[ "$RUNNER_OS" == "Windows" && "${{ matrix.arch }}" == "arm64" ]]; then
             OUT=${APP_NAME}_v${VERSION}_windows_arm64.exe
             if [ -f "Release/${APP_NAME}.exe" ]; then
               mv Release/${APP_NAME}.exe "$OUT"
             elif [ -f "${APP_NAME}.exe" ]; then
-              mv ${APP_NAME}. exe "$OUT"
+              mv ${APP_NAME}.exe "$OUT"
+            else
+              echo "ERROR: Cannot find ${APP_NAME}.exe"
+              exit 1
             fi
           elif [[ "$RUNNER_OS" == "Linux" && "${{ matrix.arch }}" == "arm64" ]]; then
             OUT=${APP_NAME}_v${VERSION}_linux_arm64
@@ -100,7 +115,10 @@ jobs:
             OUT=${APP_NAME}_v${VERSION}_darwin_amd64
             mv ${APP_NAME} "$OUT"
           fi
+          
           echo "OUT=$OUT" >> "$GITHUB_ENV"
+          echo "=== Final output file ==="
+          ls -la "$OUT"
 
       # Upload artifact
       - name: Upload artifact
