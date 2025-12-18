@@ -12,141 +12,58 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        arch: [x64, arm64]
+        arch: [x64]   # 先不要 windows arm64
         build_type: [Release]
 
     steps:
-      # ---------- Checkout ----------
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # ---------- Extract version ----------
       - name: Extract version
-        id: version
         shell: bash
         run: |
           VERSION=$(grep 'const char\* VERSION' main.cpp | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
-      # ---------- Set build directory ----------
-      - name: Set build directory
-        id: vars
-        shell: bash
-        run: |
-          echo "BUILD_DIR=${GITHUB_WORKSPACE}/build" >> "$GITHUB_OUTPUT"
-
-      # ---------- Linux dependencies ----------
-      - name: Setup Linux dependencies
+      - name: Setup Linux deps
         if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake libssl-dev g++-aarch64-linux-gnu
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake
 
-      # ---------- Windows dependencies ----------
       - name: Setup Windows MinGW
         if: runner.os == 'Windows'
         shell: bash
         run: |
           choco install mingw -y
-          echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> "$GITHUB_PATH"
+          echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
 
-      # ---------- Configure CMake ----------
-      - name: Configure CMake
+      - name: Configure
         shell: bash
         run: |
-          mkdir -p "${{ steps.vars.outputs.BUILD_DIR }}"
-          cd "${{ steps.vars.outputs.BUILD_DIR }}"
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-          if [[ "${{ runner.os }}" == "Linux" && "${{ matrix.arch }}" == "arm64" ]]; then
-            printf '%s\n' \
-              'set(CMAKE_SYSTEM_NAME Linux)' \
-              'set(CMAKE_SYSTEM_PROCESSOR aarch64)' \
-              'set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)' \
-              'set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)' \
-              > aarch64-toolchain.cmake
-
-            cmake "${{ github.workspace }}" \
-              -DCMAKE_TOOLCHAIN_FILE="$(pwd)/aarch64-toolchain.cmake" \
-              -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          else
-            cmake "${{ github.workspace }}" \
-              -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          fi
-
-      # ---------- Build ----------
       - name: Build
         shell: bash
         run: |
-          cd "${{ steps.vars.outputs.BUILD_DIR }}"
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cmake --build . --config ${{ matrix.build_type }} --target taiwanfrp_launcher
-          else
-            cmake --build . --target taiwanfrp_launcher -- -j$(nproc)
-          fi
+          cmake --build build --config Release
 
-      # ---------- Rename executable ----------
-      - name: Rename executable for release
+      - name: Rename executable
         shell: bash
         run: |
-          cd "${{ steps.vars.outputs.BUILD_DIR }}"
-          OS_NAME=""
-          EXT=""
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            OS_NAME="windows"
-            EXT=".exe"
+          cd build
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            OUT=taiwanfrp_launcher_v${VERSION}_windows_amd64.exe
+            mv Release/taiwanfrp_launcher.exe $OUT
           else
-            OS_NAME="linux"
+            OUT=taiwanfrp_launcher_v${VERSION}_linux_amd64
+            mv taiwanfrp_launcher $OUT
           fi
+          echo "OUT=$OUT" >> $GITHUB_ENV
 
-          ARCH_NAME=""
-          if [[ "${{ matrix.arch }}" == "x64" ]]; then
-            ARCH_NAME="amd64"
-          else
-            ARCH_NAME="arm64"
-          fi
-
-          RELEASE_FILE=taiwanfrp_launcher_v${{ env.VERSION }}_${OS_NAME}_${ARCH_NAME}${EXT}
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            mv Release/taiwanfrp_launcher.exe $RELEASE_FILE
-          else
-            mv taiwanfrp_launcher $RELEASE_FILE
-          fi
-
-          echo "RELEASE_FILE=$RELEASE_FILE" >> "$GITHUB_ENV"
-
-      # ---------- Create Tag ----------
-      - name: Create tag if not exists
-        id: create_tag
-        env:
-          REPO_PAT: ${{ secrets.REPO_PAT }}
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-
-          TAG=v${{ env.VERSION }}
-
-          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
-            git tag "$TAG"
-            git push https://x-access-token:${REPO_PAT}@github.com/${{ github.repository }} "$TAG"
-          fi
-
-      # ---------- Create GitHub Release ----------
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        with:
-          tag_name: v${{ env.VERSION }}
-          release_name: v${{ env.VERSION }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.REPO_PAT }}
-
-      # ---------- Upload executable ----------
-      - name: Upload executable to Release
+      # 只讓 Linux x64 建立 release
+      - name: Create release & upload
+        if: runner.os == 'Linux'
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ steps.vars.outputs.BUILD_DIR }}/${{ env.RELEASE_FILE }}
+          tag_name: v${{ env.VERSION }}
+          files: build/${{ env.OUT }}
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_PAT }}
