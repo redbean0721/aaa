@@ -16,6 +16,7 @@ jobs:
         build_type: [Release]
 
     steps:
+      # ---------- Checkout ----------
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -114,6 +115,22 @@ jobs:
 
           echo "RELEASE_FILE=$RELEASE_FILE" >> "$GITHUB_ENV"
 
+      # ---------- Create Tag ----------
+      - name: Create tag if not exists
+        id: create_tag
+        env:
+          REPO_PAT: ${{ secrets.REPO_PAT }}
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          TAG=v${{ env.VERSION }}
+
+          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+            git tag "$TAG"
+            git push https://x-access-token:${REPO_PAT}@github.com/${{ github.repository }} "$TAG"
+          fi
+
       # ---------- Create GitHub Release ----------
       - name: Create GitHub Release
         id: create_release
@@ -124,7 +141,7 @@ jobs:
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REPO_PAT }}
 
       # ---------- Upload executable ----------
       - name: Upload executable to Release
@@ -132,4 +149,4 @@ jobs:
         with:
           files: ${{ steps.vars.outputs.BUILD_DIR }}/${{ env.RELEASE_FILE }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REPO_PAT }}
