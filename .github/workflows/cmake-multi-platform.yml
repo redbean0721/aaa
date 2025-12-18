@@ -1,7 +1,7 @@
 name: CMake Multi-Platform Build & Release
 
 on:
-  push:
+  push: 
     branches: [main]
   workflow_dispatch:
 
@@ -10,29 +10,12 @@ env:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix. os }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          # Linux x64
-          - os: ubuntu-latest
-            arch: amd64
-          # Linux ARM64 (Raspberry Pi)
-          - os: ubuntu-latest
-            arch: arm64
-          # Windows x64
-          - os: windows-latest
-            arch: amd64
-          # Windows ARM64
-          - os: windows-latest
-            arch: arm64
-          # macOS x64
-          - os: macos-latest
-            arch: amd64
-          # macOS ARM64
-          - os: macos-latest
-            arch: arm64
+      matrix: 
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        arch: [amd64, arm64]
 
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +35,7 @@ jobs:
 
       # Windows deps
       - name: Setup Windows MinGW
-        if: runner.os == 'Windows'
+        if: runner. os == 'Windows'
         shell: bash
         run: |
           choco install mingw -y
@@ -75,7 +58,7 @@ jobs:
           fi
 
       # Build
-      - name: Build
+      - name:  Build
         shell: bash
         run: |
           if [[ "$RUNNER_OS" == "Windows" ]]; then
@@ -91,7 +74,7 @@ jobs:
           cd build
           if [[ "$RUNNER_OS" == "Windows" && "${{ matrix.arch }}" == "amd64" ]]; then
             OUT=${APP_NAME}_v${VERSION}_windows_amd64.exe
-            mv Release/${APP_NAME}.exe "$OUT"
+            mv Release/${APP_NAME}. exe "$OUT"
           elif [[ "$RUNNER_OS" == "Windows" && "${{ matrix.arch }}" == "arm64" ]]; then
             OUT=${APP_NAME}_v${VERSION}_windows_arm64.exe
             mv Release/${APP_NAME}.exe "$OUT"
@@ -114,7 +97,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ runner.os }}-${{ matrix.arch }}
+          name:  ${{ runner.os }}-${{ matrix.arch }}
           path: build/${{ env.OUT }}
 
   release:
@@ -132,7 +115,7 @@ jobs:
 
       - name: Create GitHub Release & Upload
         uses: softprops/action-gh-release@v1
-        with:
+        with: 
           tag_name: v${{ github.run_number }}
           name: Release v${{ github.run_number }}
           files: dist/**/*
