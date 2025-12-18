@@ -58,12 +58,12 @@ jobs:
         shell: bash
         run: |
           if [[ "$RUNNER_OS" == "Linux" && "${{ matrix.arch }}" == "arm64" ]]; then
-            cat > toolchain-arm64.cmake <<EOF
-            set(CMAKE_SYSTEM_NAME Linux)
-            set(CMAKE_SYSTEM_PROCESSOR aarch64)
-            set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
-            set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
-            EOF
+            cat > toolchain-arm64.cmake <<'EOF'
+set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_SYSTEM_PROCESSOR aarch64)
+set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
+set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
+EOF
 
             cmake -S . -B build \
               -DCMAKE_TOOLCHAIN_FILE=toolchain-arm64.cmake \
