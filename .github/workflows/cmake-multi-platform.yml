@@ -24,6 +24,9 @@ jobs:
           # Windows x64
           - os: windows-latest
             arch: amd64
+          # Windows ARM64
+          - os: windows-latest
+            arch: arm64
           # macOS x64
           - os: macos-latest
             arch: amd64
@@ -86,8 +89,11 @@ jobs:
         shell: bash
         run: |
           cd build
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
+          if [[ "$RUNNER_OS" == "Windows" && "${{ matrix.arch }}" == "amd64" ]]; then
             OUT=${APP_NAME}_v${VERSION}_windows_amd64.exe
+            mv Release/${APP_NAME}.exe "$OUT"
+          elif [[ "$RUNNER_OS" == "Windows" && "${{ matrix.arch }}" == "arm64" ]]; then
+            OUT=${APP_NAME}_v${VERSION}_windows_arm64.exe
             mv Release/${APP_NAME}.exe "$OUT"
           elif [[ "$RUNNER_OS" == "Linux" && "${{ matrix.arch }}" == "arm64" ]]; then
             OUT=${APP_NAME}_v${VERSION}_linux_arm64
