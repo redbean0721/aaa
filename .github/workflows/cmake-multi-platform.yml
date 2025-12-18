@@ -74,10 +74,19 @@ jobs:
           cd build
           if [[ "$RUNNER_OS" == "Windows" && "${{ matrix.arch }}" == "amd64" ]]; then
             OUT=${APP_NAME}_v${VERSION}_windows_amd64.exe
-            mv Release/${APP_NAME}. exe "$OUT"
+            # 檢查檔案在哪個位置
+            if [ -f "Release/${APP_NAME}. exe" ]; then
+              mv Release/${APP_NAME}.exe "$OUT"
+            elif [ -f "${APP_NAME}.exe" ]; then
+              mv ${APP_NAME}.exe "$OUT"
+            fi
           elif [[ "$RUNNER_OS" == "Windows" && "${{ matrix.arch }}" == "arm64" ]]; then
             OUT=${APP_NAME}_v${VERSION}_windows_arm64.exe
-            mv Release/${APP_NAME}.exe "$OUT"
+            if [ -f "Release/${APP_NAME}.exe" ]; then
+              mv Release/${APP_NAME}.exe "$OUT"
+            elif [ -f "${APP_NAME}.exe" ]; then
+              mv ${APP_NAME}. exe "$OUT"
+            fi
           elif [[ "$RUNNER_OS" == "Linux" && "${{ matrix.arch }}" == "arm64" ]]; then
             OUT=${APP_NAME}_v${VERSION}_linux_arm64
             mv ${APP_NAME} "$OUT"
