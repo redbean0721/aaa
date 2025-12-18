@@ -112,7 +112,7 @@ jobs:
 
           echo "RELEASE_FILE=$RELEASE_FILE" >> "$GITHUB_ENV"
 
-      # ---------- Upload Release ----------
+      # ---------- Create Release ----------
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
@@ -124,10 +124,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # ---------- Upload executable ----------
       - name: Upload executable to Release
-        uses: actions/upload-release-asset@v2
+        uses: softprops/action-gh-release@v1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ steps.vars.outputs.BUILD_DIR }}/${{ env.RELEASE_FILE }}
-          asset_name: ${{ env.RELEASE_FILE }}
-          asset_content_type: application/octet-stream
+          files: ${{ steps.vars.outputs.BUILD_DIR }}/${{ env.RELEASE_FILE }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
