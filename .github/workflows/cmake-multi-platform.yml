@@ -19,6 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ---------- Extract version ----------
       - name: Extract version
         id: version
         shell: bash
@@ -26,13 +27,14 @@ jobs:
           VERSION=$(grep 'const char\* VERSION' main.cpp | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
+      # ---------- Set build directory ----------
       - name: Set build directory
         id: vars
         shell: bash
         run: |
           echo "BUILD_DIR=${GITHUB_WORKSPACE}/build" >> "$GITHUB_OUTPUT"
 
-      # ---------- Linux deps ----------
+      # ---------- Linux dependencies ----------
       - name: Setup Linux dependencies
         if: runner.os == 'Linux'
         shell: bash
@@ -40,7 +42,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake libssl-dev g++-aarch64-linux-gnu
 
-      # ---------- Windows deps ----------
+      # ---------- Windows dependencies ----------
       - name: Setup Windows MinGW
         if: runner.os == 'Windows'
         shell: bash
@@ -48,7 +50,7 @@ jobs:
           choco install mingw -y
           echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> "$GITHUB_PATH"
 
-      # ---------- Configure ----------
+      # ---------- Configure CMake ----------
       - name: Configure CMake
         shell: bash
         run: |
@@ -103,7 +105,7 @@ jobs:
             ARCH_NAME="arm64"
           fi
 
-          RELEASE_FILE=taiwanfrp_launcher_v${VERSION}_${OS_NAME}_${ARCH_NAME}${EXT}
+          RELEASE_FILE=taiwanfrp_launcher_v${{ env.VERSION }}_${OS_NAME}_${ARCH_NAME}${EXT}
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             mv Release/taiwanfrp_launcher.exe $RELEASE_FILE
           else
@@ -112,7 +114,21 @@ jobs:
 
           echo "RELEASE_FILE=$RELEASE_FILE" >> "$GITHUB_ENV"
 
-      # ---------- Create Release ----------
+      # ---------- Create Tag ----------
+      - name: Create tag if not exists
+        id: create_tag
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          TAG=v${{ env.VERSION }}
+
+          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
+
+      # ---------- Create GitHub Release ----------
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
@@ -122,7 +138,7 @@ jobs:
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.REPO_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # ---------- Upload executable ----------
       - name: Upload executable to Release
