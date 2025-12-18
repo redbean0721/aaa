@@ -18,58 +18,68 @@ jobs:
         build_type: [Release]
 
     steps:
-      # 1️⃣ 檢出程式碼
       - uses: actions/checkout@v4
 
-      # 2️⃣ 設定 build 目錄變數
       - name: Set build directory
         id: vars
-        run: echo "BUILD_DIR=${GITHUB_WORKSPACE}/build" >> $GITHUB_OUTPUT
+        shell: bash
+        run: |
+          echo "BUILD_DIR=${GITHUB_WORKSPACE}/build" >> "$GITHUB_OUTPUT"
 
-      # 3️⃣ Linux 安裝依賴
+      # ---------- Linux deps ----------
       - name: Setup Linux dependencies
         if: runner.os == 'Linux'
+        shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake libssl-dev g++-arm-linux-gnueabihf g++-aarch64-linux-gnu
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            libssl-dev \
+            g++-aarch64-linux-gnu
 
-      # 4️⃣ Windows 安裝 MinGW
+      # ---------- Windows deps ----------
       - name: Setup Windows MinGW
         if: runner.os == 'Windows'
+        shell: bash
         run: |
           choco install mingw -y
-          echo "C:\\ProgramData\\chocolatey\\lib\\mingw\\tools\\install\\mingw64\\bin" >> $GITHUB_PATH
+          echo "C:\\ProgramData\\chocolatey\\lib\\mingw\\tools\\install\\mingw64\\bin" >> "$GITHUB_PATH"
 
-      # 5️⃣ CMake configure
+      # ---------- Configure ----------
       - name: Configure CMake
+        shell: bash
         run: |
-          mkdir -p ${{ steps.vars.outputs.BUILD_DIR }}
-          cd ${{ steps.vars.outputs.BUILD_DIR }}
+          mkdir -p "${{ steps.vars.outputs.BUILD_DIR }}"
+          cd "${{ steps.vars.outputs.BUILD_DIR }}"
 
           if [[ "${{ runner.os }}" == "Linux" && "${{ matrix.arch }}" == "arm64" ]]; then
-            # Linux ARM64 交叉編譯 toolchain
-            cat <<EOT > aarch64-toolchain.cmake
+            cat <<EOF > aarch64-toolchain.cmake
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR aarch64)
 set(CMAKE_C_COMPILER aarch64-linux-gnu-gcc)
 set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
-EOT
-            cmake ${{ github.workspace }} -DCMAKE_TOOLCHAIN_FILE=$(pwd)/aarch64-toolchain.cmake -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+EOF
+            cmake "${{ github.workspace }}" \
+              -DCMAKE_TOOLCHAIN_FILE="$(pwd)/aarch64-toolchain.cmake" \
+              -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           else
-            cmake ${{ github.workspace }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+            cmake "${{ github.workspace }}" \
+              -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           fi
 
-      # 6️⃣ Build
+      # ---------- Build ----------
       - name: Build
+        shell: bash
         run: |
-          cd ${{ steps.vars.outputs.BUILD_DIR }}
+          cd "${{ steps.vars.outputs.BUILD_DIR }}"
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             cmake --build . --config ${{ matrix.build_type }}
           else
             cmake --build . -- -j$(nproc)
           fi
 
-      # 7️⃣ Upload artifacts
+      # ---------- Upload ----------
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
