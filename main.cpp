@@ -7,6 +7,7 @@
 
 // windows
 #ifdef _WIN32
+    #include <windows.h>
     #include <conio.h>
 // __linux__, __APPLE__
 #elif __linux__ || __APPLE__
@@ -62,6 +63,12 @@ std::string get_password() {
 }
 
 int main(int argc, char* argv[]) {
+#ifdef _WIN32
+    // 設定輸出為 UTF-8
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+#endif
+    
     // 解析命令列參數, -1 表示繼續執行, 其他值為退出碼
     if (int exitCode = CLI::parseArguments(argc, argv); exitCode != -1) {
         return exitCode;
@@ -95,7 +102,6 @@ int main(int argc, char* argv[]) {
     std::string username, password;
     std::cin >> username;
     std::cout << "請輸入密碼: ";
-    // std::cin >> password;
     password = get_password();
 
     std::cout << "Username: " << username << ", " << "Password: " << password << "\n";
