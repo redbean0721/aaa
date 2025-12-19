@@ -5,11 +5,20 @@
 #include "httplib.h"
 #include "json.hpp"
 
+// windows
+#ifdef _WIN32
+    #include <conio.h>
+// __linux__, __APPLE__
+#elif __linux__ || __APPLE__
+    #include <termios.h>
+    #include <unistd.h>
+#endif
+
 using nlohmann::json;
 
 const char* APP_NAME = "TaiwanFRP Launcher";
 inline constexpr const char* KEYRING_NAME = "taiwanfrp-launcher";
-const char* VERSION = "2.0.5";
+const char* VERSION = "2.0.0";
 const char* COPYRIGHT = "Copyright (c) 2025 TaiwanFRP";
 
 inline std::string FRP_VERSION;
@@ -20,6 +29,36 @@ inline constexpr const char* FRP_GITHUB_API_URL = "https://api.github.com/repos/
 size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
     ((std::string*)userp)->append((char*)contents, size * nmemb);
     return size * nmemb;
+}
+
+std::string get_password() {
+#ifdef _WIN32
+    std::string password;
+    char ch;
+    while ((ch = _getch()) != '\r') {
+        if (ch == '\b' && !password.empty()) {
+            password.pop_back();
+        } else if (ch != '\b') {
+            password += ch;
+        }
+    }
+    std::cout << std::endl;
+    return password;
+#elif __linux__ || __APPLE__
+    termios oldt{}, newt{};
+    std::string password;
+
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~ECHO;
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+    std::cin >> password;
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    std::cout << std::endl;
+    return password;
+#endif
 }
 
 int main(int argc, char* argv[]) {
@@ -51,6 +90,15 @@ int main(int argc, char* argv[]) {
             }
         }
     }
+
+    std::cout << "請輸入使用者名稱: ";
+    std::string username, password;
+    std::cin >> username;
+    std::cout << "請輸入密碼: ";
+    // std::cin >> password;
+    password = get_password();
+
+    std::cout << "Username: " << username << ", " << "Password: " << password << "\n";
 
     return 0;
 }
